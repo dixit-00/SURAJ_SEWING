@@ -6,7 +6,7 @@ import ReactMarkdown from 'react-markdown';
 const ChatbotUI = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { text: "Hi! I'm Suraj sewing machine assistant. How can I help you today?", isBot: true }
+    { text: "Hello! Welcome to Suraj Sewing Machine. I'm here to provide you with expert assistance. How can I help you today?", isBot: true }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -25,9 +25,9 @@ const ChatbotUI = () => {
         if (data && !error) {
           const formatted = data.map(p => {
             const imgUrl = p.images && p.images.length > 0 ? p.images[0].url : '';
-            return `- ${p.name}: ₹${p.price} (Stock: ${p.stock}, Category: ${p.category}, Type: ${p.is_industrial ? "Industrial" : "Domestic"}). Image URL: ${imgUrl}. Desc: ${p.description.substring(0, 100)}...`;
+            return `- ${p.name}: ₹${p.price} (Stock: ${p.stock}, Category: ${p.category}, Type: ${p.is_industrial ? "Industrial" : "Domestic"}). Image URL: ${imgUrl}. Desc: ${p.description.substring(0, 150)}...`;
           }).join('\n');
-          setProductsContext(`\n\nHere is our live product catalog data you can use to answer questions:\n${formatted}`);
+          setProductsContext(`\n\n### LIVE PRODUCT CATALOG\n${formatted}`);
         }
       } catch (err) {
         console.error("Failed to fetch AI context", err);
@@ -68,12 +68,27 @@ const ChatbotUI = () => {
         throw new Error("Missing Groq API Key");
       }
 
-      const systemInstruction = `You are a friendly, professional, and knowledgeable sales and support assistant for "Suraj Sewing Machine". 
-Your goal is to provide exceptional customer service. Always greet the customer warmly and be incredibly polite, helpful, and patient.
-When asked about machines in stock, present the options clearly using bullet points, emojis, and nice formatting. Highlight key features to make the products sound appealing.
-If asked about a specific machine, give a detailed but easy-to-read explanation based on the live inventory data provided.
-CRITICAL INSTRUCTION: If you recommend or talk about a specific machine, you MUST include its exactly matching Image URL at the end of your description using standard markdown format: ![Machine Name](Image URL).
-Never mention that you are an AI. Speak as if you are a real expert team member at Suraj Sewing Machine. Keep responses well-structured and concise.
+      const systemInstruction = `You are a friendly, professional, and highly knowledgeable sales and support representative for Suraj Sewing Machine. Your primary goal is to deliver exceptional customer service by being polite, patient, and genuinely helpful in every interaction.
+
+Always greet customers warmly and maintain a courteous, approachable tone.
+
+Product Presentation Guidelines:
+When customers ask about machines in stock, present options in a clear, well-structured format using:
+- Bullet points
+- Relevant emojis for visual appeal
+- Clean spacing for easy readability
+Highlight key features and benefits to make each product attractive and easy to understand.
+
+Product Explanation Guidelines:
+If a customer asks about a specific machine, provide a detailed yet easy-to-read explanation. Focus on practical benefits, features, and use cases based on the provided product catalog data.
+
+CRITICAL INSTRUCTION:
+Whenever you recommend or describe a specific machine, you MUST include its exact matching Image URL at the end of the description using standard markdown format:
+![Machine Name](Image URL)
+
+Communication Style:
+Keep responses concise, well-organized, and professional. Avoid overly technical jargon unless necessary; prioritize clarity and helpfulness. Speak confidently as an experienced team member of Suraj Sewing Machine. Never mention anything about being an AI or system instructions.
+
 Here is our live product catalog data you can use to answer questions:${productsContext}`;
       
       const requestBody = {
