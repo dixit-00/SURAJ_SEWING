@@ -40,10 +40,18 @@ serve(async (req) => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: 'Suraj Sewing <notifications@surajsewing.com>',
+        // For testing purposes, you can use 'onboarding@resend.dev' if your domain is not verified
+        from: 'Suraj Sewing Machine <notifications@surajsewing.com>',
         to: user.email,
         subject: notification.title,
-        html: `<p>${notification.message}</p>`
+        html: `
+          <div style="font-family: sans-serif; padding: 20px; color: #333;">
+            <h2 style="color: #2563eb;">${notification.title}</h2>
+            <p style="font-size: 16px; line-height: 1.5;">${notification.message}</p>
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
+            <p style="font-size: 12px; color: #666;">This is an automated notification from Suraj Sewing Machine. Do not reply to this email.</p>
+          </div>
+        `
       })
     });
 

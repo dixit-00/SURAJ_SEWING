@@ -4,6 +4,8 @@ import { Toaster } from 'react-hot-toast';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import ChatbotUI from './components/ChatbotUI';
+import { supabase } from './config/supabaseClient';
+import VisitorTracker from './components/VisitorTracker';
 
 // Context Providers
 import { AuthProvider } from './context/AuthContext';
@@ -26,6 +28,8 @@ import ManageProducts from './pages/admin/ManageProducts';
 import ManageOrders from './pages/admin/ManageOrders';
 import ManageUsers from './pages/admin/ManageUsers';
 import AdminFeedback from './pages/admin/AdminFeedback.jsx';
+import VisitorTracking from './pages/admin/VisitorTracking';
+import ManageService from './pages/admin/ManageService';
 
 // Custom Wrappers
 import ProtectedRoute from './components/ProtectedRoute';
@@ -38,6 +42,7 @@ const App = () => {
 
   return (
     <AuthProvider>
+      <VisitorTracker />
       <CartProvider>
         <Router>
           <div className="flex flex-col min-h-screen bg-gray-50 text-gray-900 transition-colors duration-300 dark:bg-gray-900 dark:text-gray-100 selection:bg-blue-500/30">
@@ -65,6 +70,8 @@ const App = () => {
                 <Route path="/admin/orders" element={<AdminRoute><ManageOrders /></AdminRoute>} />
                 <Route path="/admin/users" element={<AdminRoute><ManageUsers /></AdminRoute>} />
                 <Route path="/admin/feedback" element={<AdminRoute><AdminFeedback /></AdminRoute>} />
+                <Route path="/admin/tracking" element={<AdminRoute><VisitorTracking /></AdminRoute>} />
+                <Route path="/admin/service" element={<AdminRoute><ManageService /></AdminRoute>} />
                 
                 {/* Handy Redirects */}
                 <Route path="/AdminPanel" element={<Navigate to="/admin/dashboard" replace />} />

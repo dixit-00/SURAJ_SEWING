@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../config/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
-import { Loader2, TrendingUp, ShoppingBag, Users, DollarSign, ArrowRight, Activity, Package, CircleDashed, CheckCircle2, MoreHorizontal, User as UserIcon } from 'lucide-react';
+import { Loader2, TrendingUp, ShoppingBag, Users, DollarSign, ArrowRight, Activity, Package, CircleDashed, CheckCircle2, MoreHorizontal, User as UserIcon, Eye, Wrench, Bell } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 const AdminDashboard = () => {
@@ -10,22 +10,36 @@ const AdminDashboard = () => {
   const [orders, setOrders] = useState([]);
   const [productsCount, setProductsCount] = useState(0);
   const [usersCount, setUsersCount] = useState(0);
+  const [activeVisitors, setActiveVisitors] = useState(0);
   const [recentUsers, setRecentUsers] = useState([]);
+  const [adminNotifications, setAdminNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchAdminData = async () => {
       try {
-        const [ordersRes, productsRes, usersRes] = await Promise.all([
+        const [ordersRes, productsRes, usersRes, vRes] = await Promise.all([
           supabase.from('orders').select('*').order('created_at', { ascending: false }),
           supabase.from('products').select('id', { count: 'exact', head: true }),
           supabase.from('users').select('*').order('created_at', { ascending: false }),
+          supabase.from('visitors').select('id', { count: 'exact', head: true }).gt('last_active', new Date(Date.now() - 5 * 60 * 1000).toISOString()),
         ]);
 
         setOrders(ordersRes.data || []);
         setProductsCount(productsRes.count || 0);
         setUsersCount(usersRes.data?.length || 0);
+        setActiveVisitors(vRes.count || 0);
         setRecentUsers((usersRes.data || []).slice(0, 5));
+
+        // Fetch Recent Admin Notifications
+        const { data: notes } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('user_id', currentUser.id)
+          .order('created_at', { ascending: false })
+          .limit(5);
+        setAdminNotifications(notes || []);
+
         setLoading(false);
       } catch (error) {
         console.error(error);
@@ -33,6 +47,23 @@ const AdminDashboard = () => {
       }
     };
     fetchAdminData();
+
+    // Real-time notifications subscription
+    const channel = supabase
+      .channel(`admin-notes-${currentUser.id}`)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'notifications',
+        filter: `user_id=eq.${currentUser.id}`
+      }, (payload) => {
+        setAdminNotifications(prev => [payload.new, ...prev].slice(0, 5));
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [currentUser]);
 
   if (loading) {
@@ -51,6 +82,12 @@ const AdminDashboard = () => {
           <div className="flex items-center gap-3 mb-2">
             <div className="h-8 w-2 bg-blue-600 rounded-full"></div>
             <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight">Enterprise Console</h1>
+            {activeVisitors > 0 && (
+              <span className="flex items-center gap-1.5 px-3 py-1 bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 text-xs font-bold rounded-full animate-pulse border border-green-100 dark:border-green-800">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                {activeVisitors} LIVE
+              </span>
+            )}
           </div>
           <p className="text-gray-500 dark:text-gray-400 font-medium ml-11">Advanced telemetry and infrastructure controls for Suraj Sewing.</p>
         </div>
@@ -151,6 +188,26 @@ const AdminDashboard = () => {
             </div>
           </div>
 
+          <div className="bg-white dark:bg-gray-800/90 backdrop-blur-xl border border-gray-100 dark:border-gray-700 rounded-3xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none mb-8">
+            <div className="flex justify-between items-center mb-6">
+               <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2"><Bell className="text-orange-500" size={20} /> Infrastructure Alerts</h2>
+               <div className="h-2 w-2 rounded-full bg-green-500 animate-ping"></div>
+            </div>
+            <div className="space-y-4">
+              {adminNotifications.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-4 italic">System nominal. No active alerts.</p>
+              ) : adminNotifications.map(note => (
+                <div key={note.id} className="p-4 bg-gray-50 dark:bg-gray-750/30 rounded-2xl border border-gray-100 dark:border-gray-700 hover:border-blue-500/30 transition-all cursor-default group">
+                   <div className="flex justify-between items-start mb-1">
+                     <p className="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">{note.title}</p>
+                     <p className="text-[10px] text-gray-400 font-medium">{new Date(note.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                   </div>
+                   <p className="text-sm text-gray-600 dark:text-gray-300 font-medium leading-relaxed">{note.message}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="bg-gradient-to-b from-gray-900 to-gray-800 text-white rounded-3xl p-8 shadow-xl relative overflow-hidden">
              <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 blur-[100px] rounded-full pointer-events-none"></div>
              <h3 className="text-xl font-bold mb-6 flex items-center gap-2"><Activity className="text-blue-400" size={20}/> Directory Hub</h3>
@@ -158,6 +215,8 @@ const AdminDashboard = () => {
                <button onClick={() => navigate('/admin/products')} className="w-full flex items-center justify-between p-4 bg-white/10 hover:bg-white/20 border border-white/5 rounded-2xl transition backdrop-blur-md group"><div className="flex items-center gap-3"><div className="p-2 bg-blue-500/20 rounded-lg text-blue-300"><Package size={18}/></div><span className="font-medium text-sm">Product Matrix</span></div><MoreHorizontal size={18} className="text-gray-400 group-hover:text-white transition" /></button>
                <button onClick={() => navigate('/admin/orders')} className="w-full flex items-center justify-between p-4 bg-white/10 hover:bg-white/20 border border-white/5 rounded-2xl transition backdrop-blur-md group"><div className="flex items-center gap-3"><div className="p-2 bg-purple-500/20 rounded-lg text-purple-300"><ShoppingBag size={18}/></div><span className="font-medium text-sm">Order Fulfillment</span></div><MoreHorizontal size={18} className="text-gray-400 group-hover:text-white transition" /></button>
                <button onClick={() => navigate('/admin/feedback')} className="w-full flex items-center justify-between p-4 bg-white/10 hover:bg-white/20 border border-white/5 rounded-2xl transition backdrop-blur-md group"><div className="flex items-center gap-3"><div className="p-2 bg-green-500/20 rounded-lg text-green-300"><Activity size={18}/></div><span className="font-medium text-sm">Telemetry & Feedback</span></div><MoreHorizontal size={18} className="text-gray-400 group-hover:text-white transition" /></button>
+               <button onClick={() => navigate('/admin/tracking')} className="w-full flex items-center justify-between p-4 bg-white/10 hover:bg-white/20 border border-white/5 rounded-2xl transition backdrop-blur-md group"><div className="flex items-center gap-3"><div className="p-2 bg-yellow-500/20 rounded-lg text-yellow-300"><Eye size={18}/></div><span className="font-medium text-sm">Visitor Analytics</span></div><MoreHorizontal size={18} className="text-gray-400 group-hover:text-white transition" /></button>
+               <button onClick={() => navigate('/admin/service')} className="w-full flex items-center justify-between p-4 bg-white/10 hover:bg-white/20 border border-white/5 rounded-2xl transition backdrop-blur-md group"><div className="flex items-center gap-3"><div className="p-2 bg-red-500/20 rounded-lg text-red-300"><Wrench size={18}/></div><span className="font-medium text-sm">Service Requests</span></div><MoreHorizontal size={18} className="text-gray-400 group-hover:text-white transition" /></button>
              </div>
           </div>
         </div>

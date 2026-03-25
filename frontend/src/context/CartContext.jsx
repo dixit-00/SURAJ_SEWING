@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useReducer } from 'react';
+import { supabase } from '../config/supabaseClient';
 
 const CartContext = createContext();
 
@@ -56,9 +57,9 @@ const cartReducer = (state, action) => {
 export const CartProvider = ({ children }) => {
   const [state, dispatch] = useReducer(cartReducer, initialState);
 
-  const addToCart = (product, qty) => {
+  const addToCart = async (product, qty) => {
     const item = {
-      product: product._id,
+      product: product.id || product._id,
       name: product.name,
       image: product.images[0]?.url,
       price: product.price,
@@ -67,12 +68,43 @@ export const CartProvider = ({ children }) => {
     };
     dispatch({ type: 'CART_ADD_ITEM', payload: item });
     localStorage.setItem('cartItems', JSON.stringify([...state.cartItems, item]));
+
+    // Log the event to Supabase
+    try {
+      const visitorId = localStorage.getItem('visitorId');
+      if (visitorId) {
+        await supabase.from('cart_events').insert({
+          visitor_id: visitorId,
+          product_id: item.product,
+          product_name: item.name,
+          action: 'add'
+        });
+      }
+    } catch (error) {
+      console.error('Error logging add to cart event:', error);
+    }
   };
 
-  const removeFromCart = (id) => {
+  const removeFromCart = async (id) => {
+    const removedItem = state.cartItems.find(x => x.product === id);
     dispatch({ type: 'CART_REMOVE_ITEM', payload: id });
     const newItems = state.cartItems.filter(x => x.product !== id);
     localStorage.setItem('cartItems', JSON.stringify(newItems));
+
+    // Log the event to Supabase
+    try {
+      const visitorId = localStorage.getItem('visitorId');
+      if (visitorId && removedItem) {
+        await supabase.from('cart_events').insert({
+          visitor_id: visitorId,
+          product_id: id,
+          product_name: removedItem.name,
+          action: 'remove'
+        });
+      }
+    } catch (error) {
+      console.error('Error logging remove from cart event:', error);
+    }
   };
   
   const clearCart = () => {
